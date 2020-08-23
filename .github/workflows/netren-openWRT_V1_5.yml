@@ -109,7 +109,8 @@ jobs:
             # 网络共享文件
             # Aria2下载工具
             # qbittorrent下载工具
-            # BT下载工具
+            # transmission_BT下载工具
+            # 单IP限速工具
           cat >> .config <<EOF
           CONFIG_PACKAGE_luci-app-accesscontrol=y
           CONFIG_PACKAGE_luci-app-adbyby-plus=y
@@ -126,6 +127,7 @@ jobs:
           CONFIG_PACKAGE_luci-app-aria2=y
           CONFIG_PACKAGE_luci-app-qbittorrent=y
           CONFIG_PACKAGE_luci-app-transmission=y
+          CONFIG_PACKAGE_luci-app-nft-qos=y
           EOF
 
           # LuCI主题:
