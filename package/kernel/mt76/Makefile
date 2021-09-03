@@ -1,18 +1,19 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mt76
-PKG_RELEASE=2
+PKG_RELEASE=4
 
 PKG_LICENSE:=GPLv2
 PKG_LICENSE_FILES:=
 
 PKG_SOURCE_URL:=https://github.com/openwrt/mt76
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_DATE:=2020-07-22
-PKG_SOURCE_VERSION:=b5df0fbb1847a51f0a11f03a3fa8dc9d98d4df82
-PKG_MIRROR_HASH:=70aca7f8912b89af975c7b63fdf25d41be831c434e0c991fcbdaa60127d4acd5
+PKG_SOURCE_DATE:=2021-07-15
+PKG_SOURCE_VERSION:=bbebea7d6dc64313132226adc3f7369d36e9359d
+PKG_MIRROR_HASH:=17cd74e72c1f6c8742b698bf6772afacc6fba71b233af8c4d59530600cf44d5b
 
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
+PKG_USE_NINJA:=0
 PKG_BUILD_PARALLEL:=1
 
 PKG_CONFIG_DEPENDS += \
@@ -39,7 +40,7 @@ define KernelPackage/mt76-default
   SUBMENU:=Wireless Drivers
   DEPENDS:= \
 	+kmod-mac80211 \
-	+@DRIVER_11AC_SUPPORT +@DRIVER_11N_SUPPORT +@DRIVER_11W_SUPPORT
+	+@DRIVER_11AC_SUPPORT +@DRIVER_11N_SUPPORT
 endef
 
 define KernelPackage/mt76
@@ -143,11 +144,19 @@ define KernelPackage/mt7603
   AUTOLOAD:=$(call AutoProbe,mt7603e)
 endef
 
+define KernelPackage/mt76-connac
+  $(KernelPackage/mt76-default)
+  TITLE:=MediaTek MT7615/MT79xx wireless driver common code
+  HIDDEN:=1
+  DEPENDS+=+kmod-mt76-core
+  FILES:= $(PKG_BUILD_DIR)/mt76-connac-lib.ko
+endef
+
 define KernelPackage/mt7615-common
   $(KernelPackage/mt76-default)
   TITLE:=MediaTek MT7615 wireless driver common code
   HIDDEN:=1
-  DEPENDS+=@PCI_SUPPORT +kmod-mt76-core
+  DEPENDS+=@PCI_SUPPORT +kmod-mt76-core +kmod-mt76-connac +kmod-hwmon-core
   FILES:= $(PKG_BUILD_DIR)/mt7615/mt7615-common.ko
 endef
 
@@ -205,9 +214,17 @@ endef
 define KernelPackage/mt7915e
   $(KernelPackage/mt76-default)
   TITLE:=MediaTek MT7915e wireless driver
-  DEPENDS+=@PCI_SUPPORT +kmod-mt7615-common +@DRIVER_11AX_SUPPORT
+  DEPENDS+=@PCI_SUPPORT +kmod-mt7615-common +kmod-hwmon-core +kmod-thermal +@DRIVER_11AX_SUPPORT
   FILES:= $(PKG_BUILD_DIR)/mt7915/mt7915e.ko
   AUTOLOAD:=$(call AutoProbe,mt7915e)
+endef
+
+define KernelPackage/mt7921e
+  $(KernelPackage/mt76-default)
+  TITLE:=MediaTek MT7921e wireless driver
+  DEPENDS+=@PCI_SUPPORT +kmod-mt76-connac
+  FILES:= $(PKG_BUILD_DIR)/mt7921/mt7921e.ko
+  AUTOLOAD:=$(call AutoProbe,mt7921e)
 endef
 
 define Package/mt76-test
@@ -219,7 +236,8 @@ endef
 
 TARGET_CFLAGS += -I$(STAGING_DIR)/usr/include/libnl-tiny
 
-NOSTDINC_FLAGS = \
+NOSTDINC_FLAGS := \
+	$(KERNEL_NOSTDINC_FLAGS) \
 	-I$(PKG_BUILD_DIR) \
 	-I$(STAGING_DIR)/usr/include/mac80211-backport/uapi \
 	-I$(STAGING_DIR)/usr/include/mac80211-backport \
@@ -267,6 +285,9 @@ endif
 ifdef CONFIG_PACKAGE_kmod-mt7603
   PKG_MAKE_FLAGS += CONFIG_MT7603E=m
 endif
+ifdef CONFIG_PACKAGE_kmod-mt76-connac
+  PKG_MAKE_FLAGS += CONFIG_MT76_CONNAC_LIB=m
+endif
 ifdef CONFIG_PACKAGE_kmod-mt7615-common
   PKG_MAKE_FLAGS += CONFIG_MT7615_COMMON=m
 endif
@@ -289,6 +310,9 @@ ifdef CONFIG_PACKAGE_kmod-mt7663u
 endif
 ifdef CONFIG_PACKAGE_kmod-mt7915e
   PKG_MAKE_FLAGS += CONFIG_MT7915E=m
+endif
+ifdef CONFIG_PACKAGE_kmod-mt7921e
+  PKG_MAKE_FLAGS += CONFIG_MT7921E=m
 endif
 
 define Build/Compile
@@ -384,6 +408,14 @@ define KernelPackage/mt7915e/install
 		$(1)/lib/firmware/mediatek
 endef
 
+define KernelPackage/mt7921e/install
+	$(INSTALL_DIR) $(1)/lib/firmware/mediatek
+	cp \
+		$(PKG_BUILD_DIR)/firmware/WIFI_MT7961_patch_mcu_1_2_hdr.bin \
+		$(PKG_BUILD_DIR)/firmware/WIFI_RAM_CODE_MT7961_1.bin \
+		$(1)/lib/firmware/mediatek
+endef
+
 define Package/mt76-test/install
 	mkdir -p $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tools/mt76-test $(1)/usr/sbin
@@ -400,6 +432,7 @@ $(eval $(call KernelPackage,mt76x2-common))
 $(eval $(call KernelPackage,mt76x2u))
 $(eval $(call KernelPackage,mt76x2))
 $(eval $(call KernelPackage,mt7603))
+$(eval $(call KernelPackage,mt76-connac))
 $(eval $(call KernelPackage,mt7615-common))
 $(eval $(call KernelPackage,mt7615-firmware))
 $(eval $(call KernelPackage,mt7615e))
@@ -409,5 +442,6 @@ $(eval $(call KernelPackage,mt7663-usb-sdio))
 $(eval $(call KernelPackage,mt7663u))
 $(eval $(call KernelPackage,mt7663s))
 $(eval $(call KernelPackage,mt7915e))
+$(eval $(call KernelPackage,mt7921e))
 $(eval $(call KernelPackage,mt76))
 $(eval $(call BuildPackage,mt76-test))
