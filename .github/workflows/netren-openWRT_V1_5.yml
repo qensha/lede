@@ -1,6 +1,6 @@
 #netren openWRT
 
-name: netren OpenWrt v1.5
+name: netren OpenWrt v1.6
 
 on:
   push:
